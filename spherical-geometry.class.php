@@ -69,8 +69,9 @@ class SphericalGeometry
         $toLat = deg2rad($toLatLng->getLat());
         $lng = deg2rad($toLatLng->getLng()) - deg2rad($fromLatLng->getLng());
         
-        return self::wrapLongitude(rad2deg(atan2(sin($lng) * cos($toLat), cos($fromLat) 
+        $wrap = self::wrapLongitude(rad2deg(atan2(sin($lng) * cos($toLat), cos($fromLat) 
             * sin($toLat) - sin($fromLat) * cos($toLat) * cos($lng))));
+        return ($wrap + 360) % 360;
     }
     
     public static function computeOffset($fromLatLng, $distance, $heading) 
@@ -89,6 +90,29 @@ class SphericalGeometry
             * sin($heading), $cosDistance - $sinFromLat * $sc));
         
         return new LatLng($lat, $lng);
+    }
+    
+    //expects loaded geoPHP objects
+    public static function containsLocation($point, $polygon) {
+		$vertices_x = array();    // x-coordinates of the vertices of the polygon
+		$vertices_y = array();   // y-coordinates of the vertices of the polygon
+		$longitude_x = $point->x();  // x-coordinate of the point to test
+		$latitude_y = $point->y();    // y-coordinate of the point to test
+  
+		$polygon_array = $polygon->exteriorRing()->getComponents();
+		foreach ($polygon_array as $key=>$value) {
+			array_push($vertices_x, $value->x());
+			array_push($vertices_y, $value->y());
+		}
+		// number vertices - zero-based array
+		$points_polygon = count($vertices_x) - 1;
+		$i = $j = $c = 0;
+		for ($i = 0, $j = $points_polygon ; $i < $points_polygon; $j = $i++) {
+			if ( (($vertices_y[$i]  >  $latitude_y != ($vertices_y[$j] > $latitude_y)) &&
+			($longitude_x < ($vertices_x[$j] - $vertices_x[$i]) * ($latitude_y - $vertices_y[$i]) / ($vertices_y[$j] - $vertices_y[$i]) + $vertices_x[$i]) ) )
+			$c = !$c;
+		}
+		return $c;
     }
     
     public static function interpolate($fromLatLng, $toLatLng, $fraction)
@@ -120,7 +144,8 @@ class SphericalGeometry
 
     public static function computeDistanceBetween($LatLng1, $LatLng2)
     {
-        return self::_computeDistanceInRadiansBetween($LatLng1, $LatLng2) * self::EARTH_RADIUS;
+        $yards = self::_computeDistanceInRadiansBetween($LatLng1, $LatLng2) * self::EARTH_RADIUS * 1.09361;
+        return $yards;
     }
     
     public static function computeLength($LatLngsArray) 
